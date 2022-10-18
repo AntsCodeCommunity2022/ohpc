@@ -10,13 +10,18 @@
 
 %include %{_sourcedir}/OHPC_macros
 
-%define debug_package %{nil}
+%global debug_package %{nil}
 
 # Base package name
-%define pname warewulf
+%global pname warewulf
 
 # Group for warewulfd and other WW operations
 %global wwgroup warewulf
+
+# Service directories (normally defaults to /var/lib/*)
+%global tftpdir /srv/tftpboot
+%global srvdir /srv
+%global statedir /srv
 
 Name:    %{pname}%{PROJ_DELIM}
 Summary: A provisioning system for large clusters of bare metal and/or virtual systems
@@ -38,9 +43,8 @@ Conflicts: warewulf-vnfs
 Conflicts: warewulf-provision
 Conflicts: warewulf-ipmi
 
-BuildRequires: make
-
 %if 0%{?suse_version} || 0%{?sle_version}
+BuildRequires: distribution-release
 BuildRequires: systemd-rpm-macros
 BuildRequires: go
 BuildRequires: firewall-macros
@@ -51,16 +55,15 @@ Requires: nfs-kernel-server
 Requires: firewalld
 %else
 # Assume Fedora-based OS if not SUSE-based
+BuildRequires: system-release
 BuildRequires: systemd
 BuildRequires: golang
 BuildRequires: firewalld-filesystem
 Requires: tftp-server
 Requires: nfs-utils
 %endif
+BuildRequires: make
 Requires: dhcp-server
-%global tftpdir /srv/tftpboot
-%global srvdir /srv
-%global statedir /srv
 
 %description
 Warewulf is a stateless and diskless container operating system provisioning
@@ -97,6 +100,13 @@ make
 %install
 export NO_BRP_STALE_LINK_ERROR=yes
 make install DESTDIR=%{buildroot}
+
+# For SUSE, move dhcp.conf.ww to replace symlink
+%if 0%{?suse_version} || 0%{?sle_version}
+rm %{buildroot}%{statedir}/warewulf/overlays/host/etc/dhcpd.conf
+mv %{buildroot}%{statedir}/warewulf/overlays/host/etc/dhcp/dhcpd.conf.ww \
+    %{buildroot}%{statedir}/warewulf/overlays/host/etc/
+%endif
 
 
 %pre
